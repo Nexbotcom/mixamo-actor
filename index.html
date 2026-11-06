@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mixamo Actor</title>
+<style>
+  body{margin:0;background:#222;color:#fff;font-family:sans-serif;overflow:hidden}
+  #ui{position:fixed;bottom:0;left:0;right:0;background:#000c;padding:8px;max-height:45vh;overflow:auto}
+  button{margin:2px;padding:8px 12px;border:0;border-radius:6px;background:#2a7;color:#fff}
+  label{display:block;font-size:13px;margin-top:4px}
+  input[type=range]{width:100%}
+  #msg{position:fixed;top:8px;left:8px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="msg">Loading...</div>
+<div id="ui">
+  <div id="cmds"></div>
+  <input id="cmd" placeholder="type a command: walk" style="width:60%;padding:8px">
+  <button id="go">Go</button>
+  <label>Height <input type="range" id="h" min="0.7" max="1.4" step="0.01" value="1"></label>
+  <label>Fatness <input type="range" id="f" min="0.7" max="1.8" step="0.01" value="1"></label>
+  <label>Head size <input type="range" id="hd" min="0.7" max="2" step="0.01" value="1"></label>
+  <label>Arm length <input type="range" id="a" min="0.7" max="1.6" step="0.01" value="1"></label>
+  <label>Color tint <input type="color" id="c" value="#ffffff"></label>
+  <button id="rnd">Random new character</button>
+</div>
+
+<script type="importmap">
+{"imports":{
+ "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const $ = id => document.getElementById(id);
+const ANIMS = ['idle','walk','run','sit','wave','talk'];
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 1.3, 4);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(3, 6, 4);
+scene.add(sun);
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(6, 40),
+  new THREE.MeshStandardMaterial({color:0x558855})
+);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+// Actor
+const actor = new THREE.Group();
+scene.add(actor);
+let model, mixer, current, head, armL, armR;
+const actions = {};
+const loader = new FBXLoader();
+const load = url => new Promise((ok, bad) => loader.load(url, ok, undefined, bad));
+
+async function start(){
+  try{
+    model = await load('models/character.fbx');
+    model.scale.setScalar(0.01);
+    actor.add(model);
+    mixer = new THREE.AnimationMixer(model);
+    for (const n of ANIMS){
+      try{
+        const f = await load(`models/${n}.fbx`);
+        const clip = f.animations[0];
+        clip.name = n;
+        actions[n] = mixer.clipAction(clip);
+      }catch(e){ console.warn('Missing animation:', n); }
+    }
+    head = model.getObjectByName('mixamorigHead');
+    armL = model.getObjectByName('mixamorigLeftArm');
+    armR = model.getObjectByName('mixamorigRightArm');
+    Object.keys(actions).forEach(n => {
+      const b = document.createElement('button');
+      b.textContent = n;
+      b.onclick = () => runCmd(n);
+      $('cmds').appendChild(b);
+    });
+    $('msg').textContent = 'Ready: ' + Object.keys(actions).join(', ');
+    runCmd('idle');
+  }catch(e){
+    $('msg').textContent = 'Could not load models/character.fbx';
+  }
+}
+
+function runCmd(text){
+  const name = text.toLowerCase().trim();
+  const next = actions[name];
+  if (!next) { $('msg').textContent = 'Unknown command: ' + name; return; }
+  if (current && current !== next) current.fadeOut(0.3);
+  next.reset().fadeIn(0.3).play();
+  current = next;
+}
+
+// Body changes (applied every frame so animations don't undo them)
+function applyBody(){
+  const f = +$('f').value, h = +$('h').value;
+  actor.scale.set(f, h, f);
+  if (head) head.scale.setScalar(+$('hd').value);
+  [armL, armR].forEach(b => b && b.scale.setScalar(+$('a').value));
+}
+
+function tint(){
+  if (!model) return;
+  model.traverse(o => {
+    if (o.isMesh){
+      (Array.isArray(o.material) ? o.material : [o.material])
+        .forEach(m => m.color && m.color.set($('c').value));
+    }
+  });
+}
+$('c').oninput = tint;
+$('go').onclick = () => runCmd($('cmd').value);
+
+$('rnd').onclick = () => {
+  const r = (a, b) => (a + Math.random()*(b-a)).toFixed(2);
+  $('h').value = r(0.8, 1.3);
+  $('f').value = r(0.8, 1.6);
+  $('hd').value = r(0.8, 1.8);
+  $('a').value = r(0.8, 1.4);
+  $('c').value = '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
+  tint();
+};
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  if (mixer) mixer.update(clock.getDelta());
+  applyBody();
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+start();
+</script>
+</body>
+</html>
