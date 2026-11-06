@@ -96,8 +96,9 @@ async function start(){
     });
     $('msg').textContent = 'Ready: ' + Object.keys(actions).join(', ');
     runCmd('idle');
-  }catch(e){
-    $('msg').textContent = 'Could not load models/character.fbx';
+    }catch(e){
+    console.error(e);
+    $('msg').textContent = 'Error: ' + (e && e.message ? e.message : 'could not read character file');
   }
 }
 
