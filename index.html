@@ -48,6 +48,7 @@
         <label>Fatness <input type="range" id="f" min="0.7" max="1.8" step="0.01" value="1"></label>
         <label>Head size <input type="range" id="hd" min="0.7" max="2" step="0.01" value="1"></label>
         <label>Arm length <input type="range" id="a" min="0.7" max="1.6" step="0.01" value="1"></label>
+        <label>Sit height fix (raise or lower when sitting) <input type="range" id="sitAdj" min="-0.3" max="0.3" step="0.01" value="0"></label>
         <label>Color tint <input type="color" id="c" value="#ffffff"></label>
         <button id="rnd">Random body</button>
       </details>
@@ -123,23 +124,28 @@ const ANIMS = ['idle','walk','run','jump','sit_down','sit_idle','stand_up','sit_
   'fall','sleep','sleep_idle','phone','drink','hand_shake','open_door_in','open_door_out'];
 const ONCE = new Set(['sit_down','stand_up','fall','jump','sleep','open_door_in','open_door_out']);
 const SITMAP = {talk:'sit_talk', laugh:'sit_laugh', idle:'sit_idle'};
+const RENAME = {plant_plot:'plant_pot'};
+
+// Sitting fine-tuning (in meters)
+const SEAT_BACK_GAP = 0.22;   // gap between the seat's backrest and the character's hips
+const SIT_PELVIS = 0.10;      // distance from the hip joint down to the bottom of the seat
 
 // Biggest size of each item in meters (change here if an item looks too big or small)
 const SIZES = {
   black_sofa:2.0, red_sofa:2.0, white_armchair:0.95, coffee_table:1.0, center_table:1.2,
-  study_table:1.3, wardrobe:2.0, bed:2.1, tv:1.1, tv_stand:1.5, plant_plot:0.9,
+  study_table:1.3, wardrobe:2.0, bed:2.1, tv:1.1, tv_stand:1.5, plant_pot:0.9,
   lamp:0.6, cup:0.1, coffee_cup:0.1
 };
 
 const DEFAULT_LAYOUT = [
-  {key:'black_sofa',     x:1.3, y:0,    z:-2.3, ry:0, fo:0, s:1},
-  {key:'coffee_table',   x:1.3, y:0,    z:-0.8, ry:0, fo:0, s:1},
-  {key:'cup',            x:1.3, y:0.45, z:-0.8, ry:0, fo:0, s:1},
-  {key:'white_armchair', x:-0.5,y:0,    z:-0.6, ry:0, fo:0, s:1},
-  {key:'tv_stand',       x:2.7, y:0,    z:0.2,  ry:-Math.PI/2, fo:0, s:1},
-  {key:'tv',             x:2.7, y:0.5,  z:0.2,  ry:-Math.PI/2, fo:0, s:1},
-  {key:'lamp',           x:2.5, y:0,    z:-2.7, ry:0, fo:0, s:1},
-  {key:'plant_plot',     x:-2.6,y:0,    z:-2.5, ry:0, fo:0, s:1}
+  {key:'black_sofa',     x:1.3, y:0,    z:-2.3, ry:0, fo:0, fs:0, s:1},
+  {key:'coffee_table',   x:1.3, y:0,    z:-0.8, ry:0, fo:0, fs:0, s:1},
+  {key:'cup',            x:1.3, y:0.45, z:-0.8, ry:0, fo:0, fs:0, s:1},
+  {key:'white_armchair', x:-0.5,y:0,    z:-0.6, ry:0, fo:0, fs:0, s:1},
+  {key:'tv_stand',       x:2.7, y:0,    z:0.2,  ry:-Math.PI/2, fo:0, fs:0, s:1},
+  {key:'tv',             x:2.7, y:0.5,  z:0.2,  ry:-Math.PI/2, fo:0, fs:0, s:1},
+  {key:'lamp',           x:2.5, y:0,    z:-2.7, ry:0, fo:0, fs:0, s:1},
+  {key:'plant_pot',      x:-2.6,y:0,    z:-2.5, ry:0, fo:0, fs:0, s:1}
 ];
 
 // ================= SCENE =================
@@ -248,6 +254,7 @@ function getProp(key){
 }
 
 async function addProp(key, st){
+  key = RENAME[key] || key;
   try{
     const base = await getProp(key);
     const root = base.clone(true);
@@ -263,7 +270,7 @@ async function addProp(key, st){
     root.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
     const g = new THREE.Group();
     g.add(root);
-    g.userData = {prop:true, key, fo:st.fo || 0};
+    g.userData = {prop:true, key, fo:st.fo || 0, fs:st.fs || 0};
     g.position.set(st.x, st.y, st.z);
     g.rotation.y = st.ry || 0;
     g.scale.setScalar(st.s || 1);
@@ -279,7 +286,7 @@ async function addProp(key, st){
 function getLayout(){
   const r = n => +n.toFixed(3);
   return props.map(g => ({key:g.userData.key, x:r(g.position.x), y:r(g.position.y), z:r(g.position.z),
-    ry:r(g.rotation.y), fo:r(g.userData.fo || 0), s:r(g.scale.x)}));
+    ry:r(g.rotation.y), fo:r(g.userData.fo || 0), fs:g.userData.fs ? 1 : 0, s:r(g.scale.x)}));
 }
 let saveT;
 function saveLayout(){
@@ -302,7 +309,7 @@ function select(g){
   if (g){ selBox = new THREE.BoxHelper(g, 0xffff00); scene.add(selBox); }
   $('selName').textContent = g ? 'Selected: ' + g.userData.key : 'Tap an item to select it';
 }
-const findProp = key => props.find(g => g.userData.key === key);
+const findProp = key => props.find(g => g.userData.key === (RENAME[key] || key));
 const frontYaw = g => g.rotation.y + (g.userData.fo || 0);
 
 // tap to select
@@ -356,11 +363,16 @@ document.querySelectorAll('#pDeco [data-a]').forEach(b => {
   const a = b.dataset.a;
   hold(b, () => act(a), ['left','right','front','back','up','down'].includes(a));
 });
-$('setFront').onclick = () => { if (sel){ sel.userData.fo = -sel.rotation.y; saveLayout(); msg(sel.userData.key + ': front set (the way it faces now is where people sit or stand facing)'); } };
+$('setFront').onclick = () => {
+  if (sel){
+    sel.userData.fo = -sel.rotation.y; sel.userData.fs = 1; saveLayout();
+    msg(sel.userData.key + ': front set to the way it faces the screen now');
+  }
+};
 $('dup').onclick = async () => {
   if (!sel) return;
   const g = await addProp(sel.userData.key, {x:sel.position.x + 0.3, y:sel.position.y, z:sel.position.z,
-    ry:sel.rotation.y, fo:sel.userData.fo, s:sel.scale.x});
+    ry:sel.rotation.y, fo:sel.userData.fo, fs:sel.userData.fs, s:sel.scale.x});
   if (g){ select(g); saveLayout(); }
 };
 $('del').onclick = () => {
@@ -369,7 +381,7 @@ $('del').onclick = () => {
 };
 Object.keys(SIZES).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; $('addSel').appendChild(o); });
 $('addBtn').onclick = async () => {
-  const g = await addProp($('addSel').value, {x:0, y:0, z:0.5, ry:0, fo:0, s:1});
+  const g = await addProp($('addSel').value, {x:0, y:0, z:0.5, ry:0, fo:0, fs:0, s:1});
   if (g){ select(g); saveLayout(); msg('Added ' + g.userData.key); }
 };
 $('exp').onclick = () => { $('io').value = JSON.stringify(getLayout()); };
@@ -381,6 +393,59 @@ $('rst').onclick = async () => {
   try{ localStorage.removeItem('room_layout_v1'); }catch(e){}
   await buildLayout(DEFAULT_LAYOUT); msg('Layout reset');
 };
+
+// ================= SEAT FINDER =================
+// Looks at the real shape of the item: which side is the back, how high the seat is,
+// where the backrest ends, and where the hips should go.
+const rc = new THREE.Raycaster();
+function sampleProfile(p, f, c, topY, R){
+  const out = [], dir = new THREE.Vector3(0,-1,0);
+  const sx = Math.sin(f), sz = Math.cos(f);
+  for (let t = -R; t <= R; t += 0.04){
+    rc.set(new THREE.Vector3(c.x + sx*t, topY, c.z + sz*t), dir);
+    const h = rc.intersectObject(p, true);
+    if (h.length) out.push({t, h:h[0].point.y});
+  }
+  return out;
+}
+function seatInfo(p){
+  p.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(p);
+  const c = bb.getCenter(new THREE.Vector3()), size = bb.getSize(new THREE.Vector3());
+  const R = Math.max(size.x, size.z)*0.6, topY = bb.max.y + 0.5;
+  const avg = arr => arr.reduce((a, s) => a + s.h, 0) / arr.length;
+
+  let f = p.rotation.y + (p.userData.fo || 0);          // front set by hand
+  if (!p.userData.fs){                                   // otherwise find it: the back is the high side
+    let best = -1e9;
+    for (let k = 0; k < 4; k++){
+      const ff = p.rotation.y + k*Math.PI/2;
+      const s = sampleProfile(p, ff, c, topY, R);
+      if (s.length < 8) continue;
+      const n = Math.max(2, Math.floor(s.length*0.25));
+      const score = avg(s.slice(0, n)) - avg(s.slice(-n));
+      if (score > best){ best = score; f = ff; }
+    }
+  }
+
+  const pr = sampleProfile(p, f, c, topY, R);
+  if (pr.length < 4) throw new Error('Cannot find a seat on ' + p.userData.key);
+  const tmin = pr[0].t, tmax = pr[pr.length - 1].t, depth = tmax - tmin;
+
+  const frontHeights = pr.filter(s => s.t >= tmin + 0.4*depth).map(s => s.h).sort((a, b) => a - b);
+  const H = frontHeights[Math.floor(frontHeights.length/2)];       // seat height
+
+  let tb = tmin;                                                    // where the backrest ends
+  for (const s of pr){ if (s.h <= H + 0.12){ tb = s.t; break; } }
+  let th = tb + SEAT_BACK_GAP;
+  if (tb <= tmin + 0.05) th = (tmin + tmax)/2;                      // no backrest: sit in the middle
+  th = Math.min(Math.max(th, tmin + 0.1), tmax - 0.15);
+
+  const sx = Math.sin(f), sz = Math.cos(f);
+  return {f, H,
+    sx:c.x + sx*th, sz:c.z + sz*th,                                 // where the hips go
+    ax:c.x + sx*(tmax + 0.55), az:c.z + sz*(tmax + 0.55)};          // where to stand before sitting
+}
 
 // ================= CHARACTER =================
 const actor = new THREE.Group();
@@ -439,7 +504,7 @@ function getClip(name){
   return clipCache[name];
 }
 
-  // Match animation bone names to this character's bone names
+// Match animation bone names to this character's bone names
 const keyOf = n => n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase().replace(/^mixamorig\d*/,'');
 function retarget(clip){
   const names = {};
@@ -472,10 +537,24 @@ async function playClip(name, opt = {}){
   return {dur:clip.duration};
 }
 
+// how high the hips are when sitting (read from the sit_idle animation)
+async function sitHipY(){
+  try{
+    const clip = await getClip('sit_idle');
+    const tr = clip.tracks.find(t => /hips\.position$/i.test(t.name));
+    if (tr){
+      const y = tr.values[tr.values.length - 2] * 0.01;
+      if (y > 0.2 && y < 1.2) return y;
+    }
+  }catch(e){}
+  return 0.55;
+}
+
 // ================= MOVEMENT HELPERS =================
-let mover = null, turner = null, token = 0, sitting = null;
+let mover = null, turner = null, lift = null, token = 0, sitting = null;
 const moveTo = (x, z, speed) => new Promise((res, rej) => { mover = {x, z, speed, res, rej}; });
 const turnTo = yaw => new Promise((res, rej) => { turner = {to:yaw, res, rej}; });
+const liftTo = (y, dur) => new Promise((res, rej) => { lift = {from:actor.position.y, to:y, t:0, dur:Math.max(dur, 0.05), res, rej}; });
 const wait = s => new Promise((res, rej) => {
   const my = token;
   setTimeout(() => my === token ? res() : rej(new Error('stopped')), s*1000);
@@ -484,6 +563,7 @@ function abortAll(){
   token++;
   if (mover){ const r = mover.rej; mover = null; r(new Error('stopped')); }
   if (turner){ const r = turner.rej; turner = null; r(new Error('stopped')); }
+  if (lift){ const r = lift.rej; lift = null; r(new Error('stopped')); }
 }
 async function walkTo(x, z, run){
   const dx = x - actor.position.x, dz = z - actor.position.z;
@@ -496,7 +576,7 @@ async function standIfSitting(){
   if (!sitting) return;
   const s = sitting; sitting = null;
   const r = await playClip('stand_up', {once:true});
-  await wait(r.dur);
+  await Promise.all([wait(r.dur), liftTo(0, r.dur)]);
   await walkTo(s.ax, s.az);
   await playClip('idle');
 }
@@ -530,14 +610,19 @@ async function exec(cmd){
     if (!a) throw new Error('Say what to sit on, for example: sit black_sofa');
     const p = findProp(a); if (!p) throw new Error('No item named ' + a + ' in the room');
     await standIfSitting();
-    const f = frontYaw(p), fx = Math.sin(f), fz = Math.cos(f);
-    const ax = p.position.x + fx*0.95, az = p.position.z + fz*0.95;
-    await walkTo(ax, az);
-    await turnTo(f);
+    const s = seatInfo(p);
+    const hipY = await sitHipY();
+    const y = Math.max(-0.3, s.H - hipY + SIT_PELVIS + (+$('sitAdj').value));
+    await walkTo(s.ax, s.az);              // stand just in front of the seat
+    await turnTo(s.f);                      // face the same way as the seat
     const r = await playClip('sit_down', {once:true});
-    const dist = Math.hypot(p.position.x - actor.position.x, p.position.z - actor.position.z);
-    await Promise.all([moveTo(p.position.x, p.position.z, Math.max(dist / r.dur, 0.05)), wait(r.dur)]);
-    sitting = {ax, az};
+    const dist = Math.hypot(s.sx - actor.position.x, s.sz - actor.position.z);
+    await Promise.all([
+      moveTo(s.sx, s.sz, Math.max(dist / r.dur, 0.05)),   // slide onto the seat
+      liftTo(y, r.dur),                                    // match the seat height
+      wait(r.dur)
+    ]);
+    sitting = {ax:s.ax, az:s.az};
     await playClip('sit_idle');
   }
   else if (c === 'stand'){ await standIfSitting(); }
@@ -588,6 +673,7 @@ async function runScript(text){
     if (my === token) msg('Done');
   }catch(e){
     if (my !== token) return;
+    console.error(e);
     msg(e.message === 'stopped' ? 'Stopped' : e.message);
   }
 }
@@ -663,6 +749,12 @@ renderer.setAnimationLoop(() => {
     const dist = Math.hypot(dx, dz), step = mover.speed*dt;
     if (dist <= step){ actor.position.x = mover.x; actor.position.z = mover.z; const r = mover.res; mover = null; r(); }
     else { actor.position.x += dx/dist*step; actor.position.z += dz/dist*step; }
+  }
+  if (lift){
+    lift.t += dt;
+    const k = Math.min(1, lift.t / lift.dur), e = k*k*(3 - 2*k);
+    actor.position.y = lift.from + (lift.to - lift.from)*e;
+    if (k >= 1){ const r = lift.res; lift = null; r(); }
   }
   doorAngle += (doorTarget - doorAngle) * Math.min(1, dt*4);
   doorPivot.rotation.y = doorAngle;
