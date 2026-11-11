@@ -116,7 +116,7 @@ const msg = t => { $('msg').textContent = t; };
 const CHAR_DIR = 'models/';
 const ANIM_DIR = 'models/';
 const PROP_DIR = 'models/props/';
-const CHARACTERS = ['man_suit','woman_casual','woman_suit','kid_cartoon'];
+const CHARACTERS = ['man_casual','woman_casual','woman_suit','kid_cartoon'];
 const ANIMS = ['idle','walk','run','jump','sit_down','sit_idle','stand_up','sit_talk','sit_laugh',
   'talk','talk2','wave','point','shrug','nod_yes','shake_no','think','clap','salute',
   'laugh','cry','angry','happy','sad','scared','cheer','defeated','dance1','dance2',
@@ -438,11 +438,31 @@ function getClip(name){
   }
   return clipCache[name];
 }
+
+  // Match animation bone names to this character's bone names
+const keyOf = n => n.replace(/[^a-zA-Z0-9]/g,'').toLowerCase().replace(/^mixamorig\d*/,'');
+function retarget(clip){
+  const names = {};
+  model.traverse(o => { if (o.name) names[keyOf(o.name)] = o.name; });
+  const tracks = [];
+  clip.tracks.forEach(t => {
+    const dot = t.name.indexOf('.');
+    const bone = names[keyOf(t.name.slice(0, dot))];
+    if (!bone) return;
+    const tr = t.clone();
+    tr.name = bone + t.name.slice(dot);
+    tracks.push(tr);
+  });
+  console.log(clip.name, 'matched', tracks.length, 'of', clip.tracks.length);
+  if (!tracks.length) throw new Error(clip.name + ' does not fit this character');
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}
+
 async function playClip(name, opt = {}){
   if (!mixer) throw new Error('Character is not loaded yet');
   const clip = await getClip(name);
   let a = actions[name];
-  if (!a) a = actions[name] = mixer.clipAction(clip);
+  if (!a) a = actions[name] = mixer.clipAction(retarget(clip));
   if (current === a && !opt.once && a.isRunning()) return {dur:clip.duration};
   if (opt.once){ a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
   else { a.setLoop(THREE.LoopRepeat, Infinity); a.clampWhenFinished = false; }
