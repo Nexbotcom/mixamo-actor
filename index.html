@@ -5,33 +5,94 @@
 <title>Mixamo Room</title>
 <style>
   body{margin:0;background:#222;color:#fff;font-family:sans-serif;overflow:hidden}
-  #ui{position:fixed;bottom:0;left:0;right:0;background:#000d;padding:8px;max-height:44vh;overflow:auto}
-  #msg{position:fixed;top:8px;left:8px;right:8px;font-size:13px;text-shadow:0 0 4px #000}
-  button{margin:2px;padding:8px 12px;border:0;border-radius:6px;background:#2a7;color:#fff}
+  #msg{position:fixed;top:8px;left:8px;right:8px;font-size:13px;text-shadow:0 0 4px #000;pointer-events:none}
+  #sheet{position:fixed;left:0;right:0;bottom:0;background:#000d}
+  #tabs{display:flex;gap:4px;padding:4px}
+  #panel{padding:6px 8px;max-height:40vh;overflow:auto}
+  button{margin:2px;padding:9px 10px;border:0;border-radius:6px;background:#2a7;color:#fff;font-size:14px}
   button.alt{background:#46c}
   button.stop{background:#c43}
-  textarea{width:100%;box-sizing:border-box;padding:8px;font-size:14px}
+  button.gray{background:#555}
+  button.on{outline:2px solid #fff}
+  select,textarea{padding:7px;font-size:14px;max-width:100%}
+  textarea{width:100%;box-sizing:border-box}
   label{display:block;font-size:13px;margin-top:4px}
   input[type=range]{width:100%}
   details{margin-top:6px}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+  .pad button{margin:0}
+  #selName{margin:6px 0;font-size:14px;color:#ffe066}
 </style>
 </head>
 <body>
 <div id="msg">Loading...</div>
-<div id="ui">
-  <textarea id="script" rows="3">spawn outside, wave 2, enter, goto center, talk 3, sit chair, wait 3, goto sofa</textarea>
-  <button id="play" class="alt">Play script</button>
-  <button id="stop" class="stop">Stop</button>
-  <div id="cmds"></div>
-  <details>
-    <summary>Change the body</summary>
-    <label>Height <input type="range" id="h" min="0.7" max="1.4" step="0.01" value="1"></label>
-    <label>Fatness <input type="range" id="f" min="0.7" max="1.8" step="0.01" value="1"></label>
-    <label>Head size <input type="range" id="hd" min="0.7" max="2" step="0.01" value="1"></label>
-    <label>Arm length <input type="range" id="a" min="0.7" max="1.6" step="0.01" value="1"></label>
-    <label>Color tint <input type="color" id="c" value="#ffffff"></label>
-    <button id="rnd">Random new character</button>
-  </details>
+
+<div id="sheet">
+  <div id="tabs">
+    <button id="tScript" class="alt on">Script</button>
+    <button id="tDeco" class="alt">Decorate</button>
+    <button id="tHide" class="gray">Hide ▼</button>
+  </div>
+  <div id="panel">
+
+    <div id="pScript">
+      <select id="charSel"></select>
+      <textarea id="script" rows="3">spawn outside, wave 2, enter, goto center, talk 3, sit black_sofa, talk 3, laugh 3, stand, leave</textarea>
+      <button id="play" class="alt">Play script</button>
+      <button id="stop" class="stop">Stop</button>
+      <button id="resetView" class="gray">Reset view</button>
+      <details><summary>Quick moves</summary><div id="cmds"></div></details>
+      <details>
+        <summary>Change the body</summary>
+        <label>Height <input type="range" id="h" min="0.7" max="1.4" step="0.01" value="1"></label>
+        <label>Fatness <input type="range" id="f" min="0.7" max="1.8" step="0.01" value="1"></label>
+        <label>Head size <input type="range" id="hd" min="0.7" max="2" step="0.01" value="1"></label>
+        <label>Arm length <input type="range" id="a" min="0.7" max="1.6" step="0.01" value="1"></label>
+        <label>Color tint <input type="color" id="c" value="#ffffff"></label>
+        <button id="rnd">Random body</button>
+      </details>
+    </div>
+
+    <div id="pDeco" style="display:none">
+      <select id="addSel"></select>
+      <button id="addBtn" class="alt">Add item</button>
+      <div id="selName">Tap an item to select it</div>
+      <div>Step size:
+        <select id="step">
+          <option value="0">Small</option>
+          <option value="1" selected>Medium</option>
+          <option value="2">Large</option>
+        </select>
+      </div>
+      <div class="pad" style="margin-top:6px">
+        <button data-a="up">⬆ Up</button>
+        <button data-a="back">▲ Back</button>
+        <button data-a="down">⬇ Down</button>
+        <button data-a="left">◀ Left</button>
+        <button data-a="front">▼ Front</button>
+        <button data-a="right">▶ Right</button>
+      </div>
+      <div>
+        <button data-a="rotl" class="alt">⟲ Turn</button>
+        <button data-a="rotr" class="alt">⟳ Turn</button>
+        <button data-a="big" class="alt">＋ Bigger</button>
+        <button data-a="small" class="alt">－ Smaller</button>
+      </div>
+      <div>
+        <button id="setFront" class="gray">✔ Set front</button>
+        <button id="dup" class="gray">Duplicate</button>
+        <button id="del" class="stop">Delete</button>
+      </div>
+      <details>
+        <summary>Save / share layout</summary>
+        <button id="exp" class="gray">Show layout text</button>
+        <button id="imp" class="gray">Load layout text</button>
+        <button id="rst" class="stop">Reset layout</button>
+        <textarea id="io" rows="4" placeholder="layout text appears here"></textarea>
+      </details>
+    </div>
+
+  </div>
 </div>
 
 <script type="importmap">
@@ -44,18 +105,52 @@
 <script type="module">
 import * as THREE from 'three';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {DRACOLoader} from 'three/addons/loaders/DRACOLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 
 const $ = id => document.getElementById(id);
-const ANIMS = ['idle','walk','run','sit','wave','talk'];
+const msg = t => { $('msg').textContent = t; };
 
-// ---------- Scene ----------
+// ================= SETTINGS (change folders here if needed) =================
+const CHAR_DIR = 'models/';
+const ANIM_DIR = 'models/';
+const PROP_DIR = 'models/props/';
+const CHARACTERS = ['man_suit','woman_casual','woman_suit','kid_cartoon'];
+const ANIMS = ['idle','walk','run','jump','sit_down','sit_idle','stand_up','sit_talk','sit_laugh',
+  'talk','talk2','wave','point','shrug','nod_yes','shake_no','think','clap','salute',
+  'laugh','cry','angry','happy','sad','scared','cheer','defeated','dance1','dance2',
+  'fall','sleep','sleep_idle','phone','drink','hand_shake','open_door_in','open_door_out'];
+const ONCE = new Set(['sit_down','stand_up','fall','jump','sleep','open_door_in','open_door_out']);
+const SITMAP = {talk:'sit_talk', laugh:'sit_laugh', idle:'sit_idle'};
+
+// Biggest size of each item in meters (change here if an item looks too big or small)
+const SIZES = {
+  black_sofa:2.0, red_sofa:2.0, white_armchair:0.95, coffee_table:1.0, center_table:1.2,
+  study_table:1.3, wardrobe:2.0, bed:2.1, tv:1.1, tv_stand:1.5, plant_plot:0.9,
+  lamp:0.6, cup:0.1, coffee_cup:0.1
+};
+
+const DEFAULT_LAYOUT = [
+  {key:'black_sofa',     x:1.3, y:0,    z:-2.3, ry:0, fo:0, s:1},
+  {key:'coffee_table',   x:1.3, y:0,    z:-0.8, ry:0, fo:0, s:1},
+  {key:'cup',            x:1.3, y:0.45, z:-0.8, ry:0, fo:0, s:1},
+  {key:'white_armchair', x:-0.5,y:0,    z:-0.6, ry:0, fo:0, s:1},
+  {key:'tv_stand',       x:2.7, y:0,    z:0.2,  ry:-Math.PI/2, fo:0, s:1},
+  {key:'tv',             x:2.7, y:0.5,  z:0.2,  ry:-Math.PI/2, fo:0, s:1},
+  {key:'lamp',           x:2.5, y:0,    z:-2.7, ry:0, fo:0, s:1},
+  {key:'plant_plot',     x:-2.6,y:0,    z:-2.5, ry:0, fo:0, s:1}
+];
+
+// ================= SCENE =================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1, -0.5);
@@ -66,40 +161,53 @@ function fitCamera(){
   const hf = 2*Math.atan(Math.tan(vf/2)*camera.aspect);
   const d = Math.min(Math.max(3.4/Math.tan(hf/2), 7), 16);
   camera.position.set(0, 1.5 + d*0.22, d);
+  controls.target.set(0, 1, -0.5);
   controls.update();
 }
 fitCamera();
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.5));
-const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-sun.position.set(3, 6, 5);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.4));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(0.5, 9, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, {left:-6, right:6, top:6, bottom:-6, near:1, far:25});
 scene.add(sun);
 
-// ---------- Room helpers ----------
-function box(w,h,d,color,x,y,z,parent=scene){
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w,h,d),
-    new THREE.MeshStandardMaterial({color})
-  );
+// ================= ROOM (built by code) =================
+function box(w,h,d,color,x,y,z,parent=scene,map=null){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color, map}));
   m.position.set(x,y,z);
+  m.castShadow = true; m.receiveShadow = true;
   parent.add(m);
   return m;
 }
+function plankTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  for (let i=0;i<8;i++){
+    g.fillStyle = `hsl(28,${35+Math.random()*10}%,${38+Math.random()*10}%)`;
+    g.fillRect(0,i*32,256,32);
+    g.fillStyle = '#0005'; g.fillRect(0,i*32,256,2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(3,3);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+box(6.4,0.1,6,0xffffff,0,-0.05,0,scene,plankTex());     // room floor
+box(2.6,0.1,3,0x888888,-1.6,-0.05,-4.6);                // porch outside the door
+box(2.6,0.02,1.8,0x8b2e2e,1.3,0.01,-1.0);               // rug
 
-// Floors
-box(6.4,0.1,6,0x9c6b3f,0,-0.05,0);          // room floor
-box(2.6,0.1,3,0x888888,-1.6,-0.05,-4.6);    // porch outside door
-box(2.4,0.02,1.6,0x8b2e2e,0,0.01,0.6);      // rug
-
-// Walls (back wall has a door gap at x -2.1 to -1.1)
 const wallColor = 0xf2e6d0;
 box(0.9,3,0.2,wallColor,-2.55,1.5,-3);
 box(4.1,3,0.2,wallColor,0.95,1.5,-3);
-box(1.0,0.9,0.2,wallColor,-1.6,2.55,-3);    // above the door
-box(0.2,3,6,wallColor,-3,1.5,0);            // left wall
-box(0.2,3,6,wallColor,3,1.5,0);             // right wall
+box(1.0,0.9,0.2,wallColor,-1.6,2.55,-3);                // above the door
+box(0.2,3,6,wallColor,-3,1.5,0);
+box(0.2,3,6,wallColor,3,1.5,0);
 
-// Door (hinged, opens into the room)
 const doorPivot = new THREE.Group();
 doorPivot.position.set(-1.1,0,-3);
 scene.add(doorPivot);
@@ -107,197 +215,395 @@ box(1,2.1,0.06,0x7a4a21,-0.5,1.05,0,doorPivot);
 box(0.08,0.08,0.08,0xd4af37,-0.9,1.0,0.06,doorPivot);
 let doorAngle = 0, doorTarget = 0;
 
-// Window on left wall
-box(0.05,1.1,1.5,0xffffff,-2.9,1.6,-0.5);
+box(0.05,1.1,1.5,0xffffff,-2.9,1.6,-0.5);               // window
 box(0.05,0.95,1.35,0xbfe8ff,-2.87,1.6,-0.5);
-
-// Picture on back wall
-box(1.0,0.7,0.03,0x442200,0.2,1.8,-2.89);
+box(1.0,0.7,0.03,0x442200,0.2,1.8,-2.89);               // picture
 box(0.9,0.6,0.03,0x3a78c2,0.2,1.8,-2.87);
 
-// Chair (faces the camera)
-const chair = new THREE.Group();
-chair.position.set(-0.3,0,-0.6);
-scene.add(chair);
-box(0.5,0.06,0.5,0x8a5a2b,0,0.45,0,chair);
-box(0.5,0.5,0.05,0x8a5a2b,0,0.75,-0.22,chair);
-[[-0.22,-0.22],[0.22,-0.22],[-0.22,0.22],[0.22,0.22]].forEach(([x,z]) =>
-  box(0.05,0.45,0.05,0x5a3a1b,x,0.225,z,chair));
-
-// Sofa (faces the camera)
-const sofa = new THREE.Group();
-sofa.position.set(1.6,0,-2.5);
-scene.add(sofa);
-box(1.8,0.3,0.8,0x3b5b92,0,0.15,0,sofa);
-box(1.8,0.5,0.2,0x3b5b92,0,0.55,-0.3,sofa);
-box(0.2,0.5,0.8,0x2f4a78,-0.9,0.35,0,sofa);
-box(0.2,0.5,0.8,0x2f4a78,0.9,0.35,0,sofa);
-box(1.4,0.15,0.6,0x4a6ca8,0,0.38,0.08,sofa);
-
-// Side table + lamp
-const tbl = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.3,0.3,0.06,24),
-  new THREE.MeshStandardMaterial({color:0x6b4423}));
-tbl.position.set(0.7,0.6,-0.7); scene.add(tbl);
-const tleg = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.04,0.04,0.6,12),
-  new THREE.MeshStandardMaterial({color:0x4a2f16}));
-tleg.position.set(0.7,0.3,-0.7); scene.add(tleg);
-const shade = new THREE.Mesh(
-  new THREE.ConeGeometry(0.16,0.22,20),
-  new THREE.MeshStandardMaterial({color:0xffe9a0, emissive:0xffcc55, emissiveIntensity:0.7}));
-shade.position.set(0.7,0.8,-0.7); scene.add(shade);
-
-// ---------- Places the character can go ----------
-const PLACES = {
-  center : {x:0,    z:1.5},
-  door   : {x:-1.6, z:-3.0},
-  inside : {x:-1.6, z:-1.8},
-  outside: {x:-1.6, z:-4.6},
-  chair  : {x:-0.3, z:0.6,  seat:{x:-0.3, z:-0.55}},
-  sofa   : {x:1.6,  z:-1.2, seat:{x:1.6,  z:-2.45}},
+const PL = {
+  center:{x:0,y:0,z:1.5}, door:{x:-1.6,z:-3.0}, inside:{x:-1.6,z:-1.8},
+  outside:{x:-1.6,z:-4.6}, outsideDoor:{x:-1.6,z:-3.6}, insideDoor:{x:-1.6,z:-2.4}
 };
 
-// ---------- Actor ----------
-const actor = new THREE.Group();
-actor.position.set(0,0,1.5);
-scene.add(actor);
-let model, mixer, current, head, armL, armR;
-const actions = {};
-const loader = new FBXLoader();
-const load = (url, progress) => new Promise((ok, bad) => loader.load(url, ok, progress, bad));
+// ================= LOADERS =================
+const fbxLoader = new FBXLoader();
+const loadFBX = (url, prog) => new Promise((ok, bad) => fbxLoader.load(url, ok, prog, () => bad(new Error('Cannot load ' + url))));
+const gltfLoader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/');
+gltfLoader.setDRACOLoader(draco);
 
-async function start(){
+// ================= PROPS (furniture) =================
+const props = [];
+const propCache = {};
+let sel = null, selBox = null;
+
+function getProp(key){
+  if (!propCache[key]){
+    propCache[key] = new Promise((ok, bad) =>
+      gltfLoader.load(PROP_DIR + key + '.glb', g => ok(g.scene), undefined,
+        () => { delete propCache[key]; bad(new Error('Cannot load ' + PROP_DIR + key + '.glb')); }));
+  }
+  return propCache[key];
+}
+
+async function addProp(key, st){
   try{
-    model = await load('models/character.fbx', e => {
-      if (e.total) $('msg').textContent = 'Loading character ' + Math.round(e.loaded/e.total*100) + '%';
-    });
-    model.scale.setScalar(0.01);
-    actor.add(model);
-    mixer = new THREE.AnimationMixer(model);
-    const missing = [];
-    for (const n of ANIMS){
-      try{
-        const f = await load(`models/${n}.fbx`);
-        const clip = f.animations[0];
-        clip.name = n;
-        actions[n] = mixer.clipAction(clip);
-      }catch(e){ missing.push(n); }
-    }
-    head = model.getObjectByName('mixamorigHead');
-    armL = model.getObjectByName('mixamorigLeftArm');
-    armR = model.getObjectByName('mixamorigRightArm');
-
-    Object.keys(actions).forEach(n => addBtn(n, n, ''));
-    ['goto center','sit chair','sit sofa','open','close','enter','leave']
-      .forEach(c => addBtn(c, c, 'alt'));
-
-    $('msg').textContent = 'Ready' + (missing.length ? ' (missing: ' + missing.join(', ') + ')' : '');
-    play('idle');
+    const base = await getProp(key);
+    const root = base.clone(true);
+    root.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(root);
+    const sz = b.getSize(new THREE.Vector3());
+    const k = (SIZES[key] || 1) / Math.max(sz.x, sz.y, sz.z, 0.0001);
+    root.scale.multiplyScalar(k);
+    root.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(root);
+    const c = b2.getCenter(new THREE.Vector3());
+    root.position.x -= c.x; root.position.y -= b2.min.y; root.position.z -= c.z;
+    root.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    const g = new THREE.Group();
+    g.add(root);
+    g.userData = {prop:true, key, fo:st.fo || 0};
+    g.position.set(st.x, st.y, st.z);
+    g.rotation.y = st.ry || 0;
+    g.scale.setScalar(st.s || 1);
+    scene.add(g); props.push(g);
+    return g;
   }catch(e){
     console.error(e);
-    $('msg').textContent = 'Error: ' + (e && e.message ? e.message : 'could not read character file');
+    msg('Problem: ' + e.message);
+    return null;
   }
 }
 
-function addBtn(label, command, cls){
-  const b = document.createElement('button');
-  b.textContent = label;
-  if (cls) b.className = cls;
-  b.onclick = () => runScript(command);
-  $('cmds').appendChild(b);
+function getLayout(){
+  const r = n => +n.toFixed(3);
+  return props.map(g => ({key:g.userData.key, x:r(g.position.x), y:r(g.position.y), z:r(g.position.z),
+    ry:r(g.rotation.y), fo:r(g.userData.fo || 0), s:r(g.scale.x)}));
+}
+let saveT;
+function saveLayout(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try{ localStorage.setItem('room_layout_v1', JSON.stringify(getLayout())); }catch(e){}
+  }, 300);
+}
+async function buildLayout(list){
+  props.slice().forEach(g => scene.remove(g));
+  props.length = 0;
+  select(null);
+  let n = 0;
+  await Promise.all(list.map(st => addProp(st.key, st).then(() => { n++; msg('Loading items ' + n + '/' + list.length); })));
 }
 
-function play(name){
-  const next = actions[name];
-  if (!next) return false;
-  if (current === next) return true;
-  if (current) current.fadeOut(0.3);
-  next.reset().fadeIn(0.3).play();
-  current = next;
-  return true;
+function select(g){
+  if (selBox){ scene.remove(selBox); selBox.geometry.dispose(); selBox = null; }
+  sel = g;
+  if (g){ selBox = new THREE.BoxHelper(g, 0xffff00); scene.add(selBox); }
+  $('selName').textContent = g ? 'Selected: ' + g.userData.key : 'Tap an item to select it';
 }
+const findProp = key => props.find(g => g.userData.key === key);
+const frontYaw = g => g.rotation.y + (g.userData.fo || 0);
 
-// ---------- Movement ----------
-let mover = null;
-function moveTo(x, z, speed, face){
-  return new Promise(res => {
-    const dx = x - actor.position.x, dz = z - actor.position.z;
-    if (face === undefined){
-      if (Math.hypot(dx,dz) > 0.01) actor.rotation.y = Math.atan2(dx,dz);
-    } else actor.rotation.y = face;
-    mover = {x, z, speed, res};
+// tap to select
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let downInfo = null, tab = 'script';
+renderer.domElement.addEventListener('pointerdown', e => { downInfo = {x:e.clientX, y:e.clientY, t:performance.now()}; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downInfo || tab !== 'deco') return;
+  const moved = Math.hypot(e.clientX - downInfo.x, e.clientY - downInfo.y);
+  const dt = performance.now() - downInfo.t;
+  downInfo = null;
+  if (moved > 8 || dt > 500) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left)/r.width)*2 - 1, -((e.clientY - r.top)/r.height)*2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(props, true);
+  if (hits.length){
+    let o = hits[0].object;
+    while (o && !o.userData.prop) o = o.parent;
+    select(o || null);
+  } else select(null);
+});
+
+// move / turn / size buttons
+const STEP = [0.03, 0.1, 0.3], ROT = [3, 15, 90], SCL = [1.03, 1.1, 1.25];
+function act(a){
+  if (!sel) return;
+  const i = +$('step').value, d = STEP[i];
+  if (a === 'left') sel.position.x -= d;
+  if (a === 'right') sel.position.x += d;
+  if (a === 'front') sel.position.z += d;
+  if (a === 'back') sel.position.z -= d;
+  if (a === 'up') sel.position.y += d;
+  if (a === 'down') sel.position.y = Math.max(0, sel.position.y - d);
+  if (a === 'rotl') sel.rotation.y -= THREE.MathUtils.degToRad(ROT[i]);
+  if (a === 'rotr') sel.rotation.y += THREE.MathUtils.degToRad(ROT[i]);
+  if (a === 'big') sel.scale.multiplyScalar(SCL[i]);
+  if (a === 'small') sel.scale.multiplyScalar(1/SCL[i]);
+  saveLayout();
+}
+function hold(btn, fn, repeat){
+  let t1, t2;
+  const stopH = () => { clearTimeout(t1); clearInterval(t2); };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); fn();
+    if (repeat) t1 = setTimeout(() => { t2 = setInterval(fn, 90); }, 350);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => btn.addEventListener(ev, stopH));
+}
+document.querySelectorAll('#pDeco [data-a]').forEach(b => {
+  const a = b.dataset.a;
+  hold(b, () => act(a), ['left','right','front','back','up','down'].includes(a));
+});
+$('setFront').onclick = () => { if (sel){ sel.userData.fo = -sel.rotation.y; saveLayout(); msg(sel.userData.key + ': front set (the way it faces now is where people sit or stand facing)'); } };
+$('dup').onclick = async () => {
+  if (!sel) return;
+  const g = await addProp(sel.userData.key, {x:sel.position.x + 0.3, y:sel.position.y, z:sel.position.z,
+    ry:sel.rotation.y, fo:sel.userData.fo, s:sel.scale.x});
+  if (g){ select(g); saveLayout(); }
+};
+$('del').onclick = () => {
+  if (!sel) return;
+  scene.remove(sel); props.splice(props.indexOf(sel), 1); select(null); saveLayout();
+};
+Object.keys(SIZES).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; $('addSel').appendChild(o); });
+$('addBtn').onclick = async () => {
+  const g = await addProp($('addSel').value, {x:0, y:0, z:0.5, ry:0, fo:0, s:1});
+  if (g){ select(g); saveLayout(); msg('Added ' + g.userData.key); }
+};
+$('exp').onclick = () => { $('io').value = JSON.stringify(getLayout()); };
+$('imp').onclick = async () => {
+  try{ await buildLayout(JSON.parse($('io').value)); saveLayout(); msg('Layout loaded'); }
+  catch(e){ msg('That layout text is not valid'); }
+};
+$('rst').onclick = async () => {
+  try{ localStorage.removeItem('room_layout_v1'); }catch(e){}
+  await buildLayout(DEFAULT_LAYOUT); msg('Layout reset');
+};
+
+// ================= CHARACTER =================
+const actor = new THREE.Group();
+actor.position.set(0, 0, 1.5);
+scene.add(actor);
+let model, mixer, current, head, armL, armR, actions = {}, loadingChar = 0;
+const clipCache = {};
+
+function disposeModel(o){
+  o.traverse(m => {
+    if (m.isMesh){
+      m.geometry && m.geometry.dispose();
+      (Array.isArray(m.material) ? m.material : [m.material]).forEach(mat => {
+        if (!mat) return;
+        ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'].forEach(k => mat[k] && mat[k].dispose());
+        mat.dispose();
+      });
+    }
   });
 }
-const wait = s => new Promise(r => setTimeout(r, s*1000));
+async function loadCharacter(name){
+  const id = ++loadingChar;
+  msg('Loading ' + name + '...');
+  try{
+    const m = await loadFBX(CHAR_DIR + name + '.fbx', e => {
+      if (e.total) msg('Loading ' + name + ' ' + Math.round(e.loaded/e.total*100) + '%');
+    });
+    if (id !== loadingChar) { disposeModel(m); return; }
+    if (model){ actor.remove(model); if (mixer){ mixer.stopAllAction(); mixer.uncacheRoot(model); } disposeModel(model); }
+    model = m;
+    model.scale.setScalar(0.01);
+    model.traverse(o => { if (o.isMesh){ o.castShadow = true; o.frustumCulled = false; } });
+    actor.add(model);
+    mixer = new THREE.AnimationMixer(model);
+    actions = {}; current = null;
+    head = model.getObjectByName('mixamorigHead');
+    armL = model.getObjectByName('mixamorigLeftArm');
+    armR = model.getObjectByName('mixamorigRightArm');
+    await playClip('idle');
+    msg('Ready: ' + name);
+  }catch(e){
+    console.error(e);
+    msg('Error: ' + e.message);
+  }
+}
 
-// ---------- Commands ----------
-let token = 0;
+function getClip(name){
+  if (!clipCache[name]){
+    clipCache[name] = loadFBX(ANIM_DIR + name + '.fbx').then(f => {
+      const c = f.animations[0];
+      if (!c) throw new Error('No animation inside ' + name + '.fbx');
+      c.name = name; return c;
+    });
+    clipCache[name].catch(() => { delete clipCache[name]; });
+  }
+  return clipCache[name];
+}
+async function playClip(name, opt = {}){
+  if (!mixer) throw new Error('Character is not loaded yet');
+  const clip = await getClip(name);
+  let a = actions[name];
+  if (!a) a = actions[name] = mixer.clipAction(clip);
+  if (current === a && !opt.once && a.isRunning()) return {dur:clip.duration};
+  if (opt.once){ a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; }
+  else { a.setLoop(THREE.LoopRepeat, Infinity); a.clampWhenFinished = false; }
+  if (current && current !== a) current.fadeOut(0.25);
+  a.reset().fadeIn(0.25).play();
+  current = a;
+  return {dur:clip.duration};
+}
 
+// ================= MOVEMENT HELPERS =================
+let mover = null, turner = null, token = 0, sitting = null;
+const moveTo = (x, z, speed) => new Promise((res, rej) => { mover = {x, z, speed, res, rej}; });
+const turnTo = yaw => new Promise((res, rej) => { turner = {to:yaw, res, rej}; });
+const wait = s => new Promise((res, rej) => {
+  const my = token;
+  setTimeout(() => my === token ? res() : rej(new Error('stopped')), s*1000);
+});
+function abortAll(){
+  token++;
+  if (mover){ const r = mover.rej; mover = null; r(new Error('stopped')); }
+  if (turner){ const r = turner.rej; turner = null; r(new Error('stopped')); }
+}
+async function walkTo(x, z, run){
+  const dx = x - actor.position.x, dz = z - actor.position.z;
+  if (Math.hypot(dx, dz) < 0.02) return;
+  await turnTo(Math.atan2(dx, dz));
+  await playClip(run ? 'run' : 'walk');
+  await moveTo(x, z, run ? 3.2 : 1.3);
+}
+async function standIfSitting(){
+  if (!sitting) return;
+  const s = sitting; sitting = null;
+  const r = await playClip('stand_up', {once:true});
+  await wait(r.dur);
+  await walkTo(s.ax, s.az);
+  await playClip('idle');
+}
+
+// ================= COMMANDS =================
 async function exec(cmd){
   const [c, a] = cmd.trim().toLowerCase().split(/\s+/);
   if (!c) return;
 
-  if (c === 'goto' || c === 'runto'){
-    const t = PLACES[a];
-    if (!t) throw new Error('Unknown place: ' + a);
-    play(c === 'goto' ? 'walk' : 'run');
-    await moveTo(t.x, t.z, c === 'goto' ? 1.3 : 3.2);
-    play('idle');
+  if (c === 'spawn'){
+    const t = PL[a]; if (!t) throw new Error('Unknown place: ' + a);
+    sitting = null;
+    actor.position.set(t.x, 0, t.z); actor.rotation.y = 0;
+    await playClip('idle');
   }
-  else if (c === 'sit' && PLACES[a] && PLACES[a].seat){
-    const t = PLACES[a];
-    play('walk');
-    await moveTo(t.x, t.z, 1.3);
-    play('sit');
-    await moveTo(t.seat.x, t.seat.z, 0.8, 0);   // turn around and sit back
+  else if (c === 'goto' || c === 'runto'){
+    await standIfSitting();
+    const t = PL[a];
+    if (t){
+      await walkTo(t.x, t.z, c === 'runto');
+    } else {
+      const p = findProp(a);
+      if (!p) throw new Error('No place or item named ' + a);
+      const f = frontYaw(p);
+      await walkTo(p.position.x + Math.sin(f)*1.0, p.position.z + Math.cos(f)*1.0, c === 'runto');
+      await turnTo(f + Math.PI);
+    }
+    await playClip('idle');
   }
-  else if (c === 'spawn'){
-    const t = PLACES[a];
-    if (!t) throw new Error('Unknown place: ' + a);
-    actor.position.set(t.x, 0, t.z);
-    actor.rotation.y = 0;
-    play('idle');
+  else if (c === 'sit'){
+    if (!a) throw new Error('Say what to sit on, for example: sit black_sofa');
+    const p = findProp(a); if (!p) throw new Error('No item named ' + a + ' in the room');
+    await standIfSitting();
+    const f = frontYaw(p), fx = Math.sin(f), fz = Math.cos(f);
+    const ax = p.position.x + fx*0.95, az = p.position.z + fz*0.95;
+    await walkTo(ax, az);
+    await turnTo(f);
+    const r = await playClip('sit_down', {once:true});
+    const dist = Math.hypot(p.position.x - actor.position.x, p.position.z - actor.position.z);
+    await Promise.all([moveTo(p.position.x, p.position.z, Math.max(dist / r.dur, 0.05)), wait(r.dur)]);
+    sitting = {ax, az};
+    await playClip('sit_idle');
   }
+  else if (c === 'stand'){ await standIfSitting(); }
   else if (c === 'open'){ doorTarget = 1.7; await wait(1); }
   else if (c === 'close'){ doorTarget = 0; await wait(1); }
   else if (c === 'enter'){
-    await exec('open'); await exec('goto door');
-    await exec('goto inside'); await exec('close');
+    await standIfSitting();
+    await walkTo(PL.outsideDoor.x, PL.outsideDoor.z);
+    await turnTo(0);
+    doorTarget = 1.7;
+    const r = await playClip('open_door_out', {once:true});
+    await wait(r.dur);
+    await walkTo(PL.inside.x, PL.inside.z);
+    await playClip('idle');
+    doorTarget = 0;
   }
   else if (c === 'leave'){
-    await exec('open'); await exec('goto door');
-    await exec('goto outside'); await exec('close');
+    await standIfSitting();
+    await walkTo(PL.insideDoor.x, PL.insideDoor.z);
+    await turnTo(Math.PI);
+    doorTarget = 1.7;
+    const r = await playClip('open_door_in', {once:true});
+    await wait(r.dur);
+    await walkTo(PL.outside.x, PL.outside.z);
+    await playClip('idle');
+    doorTarget = 0;
   }
   else if (c === 'wait'){ await wait(+a || 1); }
-  else if (actions[c]){ play(c); await wait(+a || 3); }
+  else if (ANIMS.includes(c)){
+    const name = (sitting && SITMAP[c]) ? SITMAP[c] : c;
+    const once = ONCE.has(name);
+    const r = await playClip(name, {once});
+    await wait(+a || (once ? r.dur : 3));
+  }
   else throw new Error('Unknown command: ' + c);
 }
 
 async function runScript(text){
-  const my = ++token;
+  abortAll();
+  const my = token;
   const list = text.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
   try{
     for (const cmd of list){
       if (my !== token) return;
-      $('msg').textContent = '> ' + cmd;
+      msg('> ' + cmd);
       await exec(cmd);
     }
-    if (my === token) $('msg').textContent = 'Done';
+    if (my === token) msg('Done');
   }catch(e){
-    $('msg').textContent = e.message;
+    if (my !== token) return;
+    msg(e.message === 'stopped' ? 'Stopped' : e.message);
   }
 }
 
+// ================= UI =================
+CHARACTERS.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; $('charSel').appendChild(o); });
+$('charSel').onchange = () => loadCharacter($('charSel').value);
+ANIMS.concat(['stand','enter','leave','open','close']).forEach(n => {
+  const b = document.createElement('button');
+  b.textContent = n; b.className = ANIMS.includes(n) ? '' : 'alt';
+  b.onclick = () => runScript(n);
+  $('cmds').appendChild(b);
+});
 $('play').onclick = () => runScript($('script').value);
-$('stop').onclick = () => {
-  token++;
-  if (mover){ const r = mover.res; mover = null; r(); }
-  play('idle');
-  $('msg').textContent = 'Stopped';
+$('stop').onclick = () => { abortAll(); if (mixer) playClip('idle').catch(() => {}); msg('Stopped'); };
+$('resetView').onclick = fitCamera;
+
+function setTab(t){
+  tab = t;
+  $('pScript').style.display = t === 'script' ? '' : 'none';
+  $('pDeco').style.display = t === 'deco' ? '' : 'none';
+  $('tScript').classList.toggle('on', t === 'script');
+  $('tDeco').classList.toggle('on', t === 'deco');
+  if (t !== 'deco') select(null);
+  $('panel').style.display = '';
+  $('tHide').textContent = 'Hide ▼';
+}
+$('tScript').onclick = () => setTab('script');
+$('tDeco').onclick = () => setTab('deco');
+$('tHide').onclick = () => {
+  const hidden = $('panel').style.display === 'none';
+  $('panel').style.display = hidden ? '' : 'none';
+  $('tHide').textContent = hidden ? 'Hide ▼' : 'Show ▲';
 };
 
-// ---------- Body changes ----------
+// body changes
 function applyBody(){
   const f = +$('f').value, h = +$('h').value;
   actor.scale.set(f, h, f);
@@ -307,49 +613,45 @@ function applyBody(){
 function tint(){
   if (!model) return;
   model.traverse(o => {
-    if (o.isMesh){
-      (Array.isArray(o.material) ? o.material : [o.material])
-        .forEach(m => m.color && m.color.set($('c').value));
-    }
+    if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m && m.color && m.color.set($('c').value));
   });
 }
 $('c').oninput = tint;
 $('rnd').onclick = () => {
   const r = (a, b) => (a + Math.random()*(b-a)).toFixed(2);
-  $('h').value = r(0.8, 1.3);
-  $('f').value = r(0.8, 1.6);
-  $('hd').value = r(0.8, 1.8);
-  $('a').value = r(0.8, 1.4);
-  $('c').value = '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
+  $('h').value = r(0.8, 1.3); $('f').value = r(0.8, 1.6);
+  $('hd').value = r(0.8, 1.8); $('a').value = r(0.8, 1.4);
+  $('c').value = '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6, '0');
   tint();
 };
 
-// ---------- Loop ----------
+// ================= LOOP =================
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (mixer) mixer.update(dt);
 
+  if (turner){
+    let d = turner.to - actor.rotation.y;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    const s = 6*dt;
+    if (Math.abs(d) <= s){ actor.rotation.y = turner.to; const r = turner.res; turner = null; r(); }
+    else actor.rotation.y += Math.sign(d)*s;
+  }
   if (mover){
     const dx = mover.x - actor.position.x, dz = mover.z - actor.position.z;
-    const dist = Math.hypot(dx, dz), step = mover.speed * dt;
-    if (dist <= step){
-      actor.position.x = mover.x; actor.position.z = mover.z;
-      const r = mover.res; mover = null; r();
-    } else {
-      actor.position.x += dx/dist*step;
-      actor.position.z += dz/dist*step;
-    }
+    const dist = Math.hypot(dx, dz), step = mover.speed*dt;
+    if (dist <= step){ actor.position.x = mover.x; actor.position.z = mover.z; const r = mover.res; mover = null; r(); }
+    else { actor.position.x += dx/dist*step; actor.position.z += dz/dist*step; }
   }
-
   doorAngle += (doorTarget - doorAngle) * Math.min(1, dt*4);
   doorPivot.rotation.y = doorAngle;
 
   applyBody();
+  if (selBox) selBox.update();
   controls.update();
   renderer.render(scene, camera);
 });
-
 addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
@@ -357,7 +659,13 @@ addEventListener('resize', () => {
   fitCamera();
 });
 
-start();
+// ================= START =================
+(async () => {
+  let layout = DEFAULT_LAYOUT;
+  try{ const s = localStorage.getItem('room_layout_v1'); if (s) layout = JSON.parse(s); }catch(e){}
+  await buildLayout(layout);
+  await loadCharacter(CHARACTERS[0]);
+})();
 </script>
 </body>
 </html>
