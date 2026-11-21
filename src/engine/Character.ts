@@ -74,8 +74,15 @@ export class Character {
           const real = this.boneByKey.get(key(node));
           if (!real) continue;
           t.name = real + prop;
+
           if (key(node) === "hips" && prop === ".position") {
-            for (let i = 0; i < t.values.length; i++) t.values[i] *= ratio;
+            const v = t.values, x0 = v[0], z0 = v[2];
+            const lock = name === "walk" || name === "run"; // stop the body drifting off its collision spot
+            for (let i = 0; i < v.length; i += 3) {
+              v[i] = (lock ? x0 : v[i]) * ratio;
+              v[i + 1] *= ratio;
+              v[i + 2] = (lock ? z0 : v[i + 2]) * ratio;
+            }
           }
           kept.push(t);
         }
