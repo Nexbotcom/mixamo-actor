@@ -3,12 +3,18 @@ import { CHARACTERS, ONE_SHOT, WALK_SPEED, RUN_SPEED, BODY_RADIUS } from "../con
 import { getClip, spawnCharacterModel } from "./Assets";
 import type { Pt } from "./Collision";
 
+// "mixamorig:LeftArm", "mixamorigLeftArm" and "LeftArm" all become "leftarm"
+const key = (n: string) => n.replace(/^mixamorig:?/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+
 export class Character {
+  static log: (s: string) => void = () => {};
+
   readonly root = new THREE.Group();
   readonly radius = BODY_RADIUS;
   private model!: THREE.Group;
   private mixer!: THREE.AnimationMixer;
   private fitted = new Map<string, THREE.AnimationClip>();
+  private boneByKey = new Map<string, string>();
   private hipsY = 100;
   private current?: THREE.AnimationAction;
   private currentName = "";
@@ -34,41 +40,69 @@ export class Character {
     this.model.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) { m.frustumCulled = false; m.castShadow = true; }
+      if ((o as THREE.Bone).isBone && !this.boneByKey.has(key(o.name))) this.boneByKey.set(key(o.name), o.name);
     });
     this.root.add(this.model);
-    const hips = this.model.getObjectByName("mixamorigHips");
+    const hipsName = this.boneByKey.get("hips");
+    const hips = hipsName ? this.model.getObjectByName(hipsName) : undefined;
     this.hipsY = hips ? hips.position.y : 100;
     this.mixer = new THREE.AnimationMixer(this.model);
     this.mixer.addEventListener("finished", (e: any) => {
       if (e.action === this.current) void this.play("idle");
     });
+    Character.log(`${this.name}: ${this.boneByKey.size} bones found`);
     await this.play("idle");
+    // start downloading the two most used animations right away
+    void getClip("walk").catch(() => {});
+    void getClip("run").catch(() => {});
   }
 
-  // shared animations are adjusted to this character's body size
+  // shared animations are matched to this character's bones and body size
   async play(name: string, fade = 0.25) {
     const tok = ++this.token;
-    let clip = this.fitted.get(name);
-    if (!clip) {
-      const src = await getClip(name);
-      clip = src.clip.clone();
-      const ratio = this.hipsY / src.hipsY;
-      for (const t of clip.tracks) {
-        if (t.name.endsWith("Hips.position")) for (let i = 0; i < t.values.length; i++) t.values[i] *= ratio;
+    try {
+      let clip = this.fitted.get(name);
+      if (!clip) {
+        Character.log(`Loading animation ${name}…`);
+        const src = await getClip(name);
+        clip = src.clip.clone();
+        const ratio = this.hipsY / src.hipsY;
+        const kept: THREE.KeyframeTrack[] = [];
+        const total = clip.tracks.length;
+        for (const t of clip.tracks) {
+          const dot = t.name.lastIndexOf(".");
+          const node = t.name.slice(0, dot), prop = t.name.slice(dot);
+          const real = this.boneByKey.get(key(node));
+          if (!real) continue;
+          t.name = real + prop;
+          if (key(node) === "hips" && prop === ".position") {
+            for (let i = 0; i < t.values.length; i++) t.values[i] *= ratio;
+          }
+          kept.push(t);
+        }
+        if (!kept.length) {
+          const first = clip.tracks[0]?.name ?? "none";
+          const sample = Array.from(this.boneByKey.values()).slice(0, 3).join(", ");
+          throw new Error(`${name}: no bones match. Animation bone "${first}", character bones ${sample}`);
+        }
+        clip.tracks = kept;
+        this.fitted.set(name, clip);
+        Character.log(`${name}: ${kept.length}/${total} tracks match`);
       }
-      this.fitted.set(name, clip);
+      if (tok !== this.token) return; // a newer request replaced this one
+      const next = this.mixer.clipAction(clip);
+      const once = ONE_SHOT.has(name);
+      next.reset();
+      next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+      next.clampWhenFinished = once;
+      next.setEffectiveWeight(1);
+      if (this.current && this.current !== next) next.crossFadeFrom(this.current, fade, false);
+      next.play();
+      this.current = next;
+      this.currentName = name;
+    } catch (e) {
+      Character.log((e as Error).message);
     }
-    if (tok !== this.token) return; // a newer request replaced this one
-    const next = this.mixer.clipAction(clip);
-    const once = ONE_SHOT.has(name);
-    next.reset();
-    next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
-    next.clampWhenFinished = once;
-    next.setEffectiveWeight(1);
-    if (this.current && this.current !== next) next.crossFadeFrom(this.current, fade, false);
-    next.play();
-    this.current = next;
-    this.currentName = name;
   }
 
   stop() { this.path = []; }
