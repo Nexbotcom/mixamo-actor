@@ -5,13 +5,26 @@ import { MODEL_DIR } from "../config";
 
 const loader = new FBXLoader();
 
+async function probe(url: string): Promise<string> {
+  try {
+    const r = await fetch(url, { method: "HEAD" });
+    const mb = Number(r.headers.get("content-length") || 0) / 1048576;
+    return `status ${r.status}, ${r.headers.get("content-type")}, ${mb.toFixed(1)} MB`;
+  } catch {
+    return "server did not answer";
+  }
+}
+
 function loadFBX(url: string, onProgress?: (frac: number) => void): Promise<THREE.Group> {
   return new Promise((resolve, reject) => {
     loader.load(
       url,
       resolve,
       (e) => { if (onProgress && e.total) onProgress(e.loaded / e.total); },
-      () => reject(new Error("Could not load " + url))
+      async (err) => {
+        const why = (err as any)?.message ?? String(err);
+        reject(new Error(`Could not load ${url} — ${why} — ${await probe(url)}`));
+      }
     );
   });
 }
