@@ -4,8 +4,7 @@ import { getClip, spawnCharacterModel } from "./Assets";
 import type { Pt } from "./Collision";
 
 // "mixamorig:LeftArm", "mixamorigLeftArm" and "LeftArm" all become "leftarm"
-const key = (n: string) => n.replace(/^mixamorig:?/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
-
+const key = (n: string) => n.replace(/^mixamorig\d*:?/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 export class Character {
   static log: (s: string) => void = () => {};
 
