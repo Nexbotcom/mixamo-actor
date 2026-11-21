@@ -11,6 +11,7 @@ const world = new World($("stage"), $("panel"));
 const colliders = new Colliders();
 const chars: Character[] = [];
 let active: Character | null = null;
+Character.log = msg;
 let run = false, follow = true, portrait = false, low = matchMedia("(pointer: coarse)").matches;
 
 // ---- test furniture built in code (real GLB items come in the next stage) ----
